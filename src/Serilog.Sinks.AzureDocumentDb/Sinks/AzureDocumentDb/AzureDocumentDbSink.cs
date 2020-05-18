@@ -20,6 +20,7 @@ using System.Net;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.CosmosDB.BulkExecutor;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
@@ -43,6 +44,10 @@ namespace Serilog.Sinks.AzureDocumentDb
         private DocumentCollection _collection;
         private Database _database;
         private readonly SemaphoreSlim _semaphoreSlim;
+
+        //Divvy changes - start
+        BulkExecutor executor;
+        //Divvy changes - end
 
         public AzureDocumentDBSink(
             Uri endpointUri,
@@ -155,6 +160,16 @@ namespace Serilog.Sinks.AzureDocumentDb
             }
         }
 
+        //Divvy changes - start
+        public async Task InitializeBulkExecutorAsync(string databaseName, string collectionName)
+        {
+            Uri collectionUri = UriFactory.CreateDocumentCollectionUri(databaseName, collectionName);
+            ResourceResponse<DocumentCollection> collectionResource = await _client.ReadDocumentCollectionAsync(collectionUri);
+            executor = new BulkExecutor(_client, collectionResource);
+            await executor.InitializeAsync();
+        }
+        //Divvy changes - end
+
         private StoredProcedure GetStoredProcedure(string collectionLink, string id)
         {
             return _client.CreateStoredProcedureQuery(collectionLink)
@@ -184,12 +199,27 @@ namespace Serilog.Sinks.AzureDocumentDb
             await _semaphoreSlim.WaitAsync().ConfigureAwait(false);
             try {
                 SelfLog.WriteLine($"Sending batch of {logEventsBatch.Count} messages to DocumentDB");
-                var storedProcedureResponse = await _client
-                                                   .ExecuteStoredProcedureAsync<int>(_bulkStoredProcedureLink, args)
-                                                   .ConfigureAwait(false);
-                SelfLog.WriteLine(storedProcedureResponse.StatusCode.ToString());
 
-                return storedProcedureResponse.StatusCode == HttpStatusCode.OK;
+                //Divvy changes - start (commented code is the existing serilog code)
+
+                //Here I converted the args (IEnumarable<Dictionary>) to josn and again converting that to dynamic list. this extra step is to fix the Timestamp issue. 
+                var jsonList = JsonConvert.SerializeObject(args, Newtonsoft.Json.Formatting.Indented);
+
+                var list = JsonConvert.DeserializeObject<dynamic>(jsonList);
+
+                var respone = await executor.BulkImportAsync(list, enableUpsert: false, disableAutomaticIdGeneration: false);
+
+                SelfLog.WriteLine("Records imported " + respone.NumberOfDocumentsImported.ToString());
+                return respone != null;
+
+                //var storedProcedureResponse = await _client
+                //                                   .ExecuteStoredProcedureAsync<int>(_bulkStoredProcedureLink, args)
+                //                                   .ConfigureAwait(false);
+                //SelfLog.WriteLine(storedProcedureResponse.StatusCode.ToString());
+
+                //return storedProcedureResponse.StatusCode == HttpStatusCode.OK;
+
+                //Divvy changes - end
             }
             catch (AggregateException e) {
                 SelfLog.WriteLine($"ERROR: {(e.InnerException ?? e).Message}");
