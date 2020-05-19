@@ -83,6 +83,8 @@ namespace Serilog.Sinks.AzureDocumentDb
             CreateDatabaseIfNotExistsAsync(databaseName).Wait();
             CreateCollectionIfNotExistsAsync(collectionName).Wait();
 
+            InitializeBulkExecutorAsync(databaseName, collectionName).Wait();
+
             JsonConvert.DefaultSettings = () =>
                                           {
                                               var settings = new JsonSerializerSettings()
