@@ -10,9 +10,9 @@
         <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
         <SignAssembly>True</SignAssembly>
         <AssemblyOriginatorKeyFile>Serilog.snk</AssemblyOriginatorKeyFile>
-        <AssemblyVersion>4.0.0.0</AssemblyVersion>
-        <Version>4.0.0</Version>
-        <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+        <AssemblyVersion>4.0.1.0</AssemblyVersion>
+        <Version>4.0.1</Version>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageTags>serilog;sinks;azure;documentdb</PackageTags>
         <PackageIconUrl>http://serilog.net/images/serilog-sink-nuget.png</PackageIconUrl>
         <PackageProjectUrl>https://serilog.net/</PackageProjectUrl>
@@ -26,6 +26,10 @@
 
     <PropertyGroup Condition="'$(VersionSuffix)'!='' ">
         <Version>$(Version)-$(VersionSuffix)</Version>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netcoreapp3.0|AnyCPU'">
+      <OutputPath>bin\</OutputPath>
     </PropertyGroup>
 
     <ItemGroup>
